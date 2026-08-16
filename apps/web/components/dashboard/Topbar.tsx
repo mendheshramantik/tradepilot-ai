@@ -1,12 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import { useCoin } from "@/context/CoinContext";
+
+const coinMap: Record<string, string> = {
+  btc: "bitcoin",
+  eth: "ethereum",
+  sol: "solana",
+  xrp: "ripple",
+  ada: "cardano",
+};
 
 export default function Topbar() {
-  const [symbol, setSymbol] = useState("");
+  const [input, setInput] = useState("");
+
+  const { setCoin } = useCoin();
 
   function handleSearch() {
-    alert(`Searching for ${symbol}`);
+    const value = input.trim().toLowerCase();
+
+    if (!value) return;
+
+    setCoin(coinMap[value] || value);
+
+    setInput("");
   }
 
   return (
@@ -17,9 +34,9 @@ export default function Topbar() {
 
       <div className="flex gap-3">
         <input
-          value={symbol}
-          onChange={(e) => setSymbol(e.target.value)}
-          placeholder="BTC, ETH..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="BTC, ETH, SOL..."
           className="rounded-lg bg-slate-800 px-4 py-2 text-white outline-none"
         />
 
