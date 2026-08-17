@@ -6,6 +6,8 @@ import Watchlist from "@/components/dashboard/Watchlist";
 import AIAnalysis from "@/components/dashboard/AIAnalysis";
 import NewsPanel from "@/components/dashboard/NewsPanel";
 import PriceChart from "@/components/dashboard/PriceChart";
+import SupportResistance from "@/components/dashboard/SupportResistance";
+import TradeSignal from "@/components/dashboard/TradeSignal";
 
 export default function DashboardPage() {
   return (
@@ -22,6 +24,8 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 space-y-6">
             <MarketCard />
             <PriceChart />
+            <SupportResistance />
+            <TradeSignal />
             <LiveMarket />
             <AIAnalysis />
           </div>
