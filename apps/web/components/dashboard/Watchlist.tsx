@@ -1,39 +1,79 @@
+"use client";
+
+import { useCoin } from "@/context/CoinContext";
+
 const coins = [
-  { symbol: "BTC", price: "$109,250", change: "+2.35%" },
-  { symbol: "ETH", price: "$3,780", change: "+1.82%" },
-  { symbol: "SOL", price: "$182", change: "+4.20%" },
-  { symbol: "XRP", price: "$0.72", change: "-0.81%" },
+  {
+    id: "bitcoin",
+    symbol: "BTC",
+    name: "Bitcoin",
+  },
+  {
+    id: "ethereum",
+    symbol: "ETH",
+    name: "Ethereum",
+  },
+  {
+    id: "solana",
+    symbol: "SOL",
+    name: "Solana",
+  },
+  {
+    id: "binancecoin",
+    symbol: "BNB",
+    name: "BNB",
+  },
 ];
 
 export default function Watchlist() {
+  const { coin, setCoin } = useCoin();
+
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-      <h2 className="mb-6 text-xl font-bold text-white">
-        ⭐ Watchlist
-      </h2>
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-white">
+      <div className="mb-5">
+        <h2 className="text-2xl font-bold">⭐ Watchlist</h2>
 
-      <div className="space-y-4">
-        {coins.map((coin) => (
-          <div
-            key={coin.symbol}
-            className="flex items-center justify-between border-b border-slate-800 pb-3"
-          >
-            <div>
-              <h3 className="font-semibold text-white">{coin.symbol}</h3>
-              <p className="text-sm text-slate-400">{coin.price}</p>
-            </div>
+        <p className="mt-1 text-sm text-slate-400">
+          Select a cryptocurrency
+        </p>
+      </div>
 
-            <span
-              className={`font-semibold ${
-                coin.change.startsWith("+")
-                  ? "text-green-400"
-                  : "text-red-400"
+      <div className="space-y-3">
+        {coins.map((item) => {
+          const selected = coin === item.id;
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => setCoin(item.id)}
+              className={`w-full rounded-xl border p-4 text-left transition ${
+                selected
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-slate-800 bg-slate-800 hover:border-slate-700 hover:bg-slate-700"
               }`}
             >
-              {coin.change}
-            </span>
-          </div>
-        ))}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-bold">{item.symbol}</p>
+
+                  <p className="text-sm text-slate-400">
+                    {item.name}
+                  </p>
+                </div>
+
+                <span
+                  className={`text-sm font-semibold ${
+                    selected
+                      ? "text-blue-400"
+                      : "text-slate-500"
+                  }`}
+                >
+                  {selected ? "Selected" : "View"}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

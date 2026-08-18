@@ -1,121 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useCoin } from "@/context/CoinContext";
 
-type MarketData = {
-  current_price: number;
-  price_change_percentage_24h: number;
-  high_24h: number;
-  low_24h: number;
-};
-
-type ChartPoint = {
-  time: number;
-  price: number;
-};
-
 export default function TradeSignal() {
-  const { coin } = useCoin();
-
-  const [market, setMarket] = useState<MarketData | null>(null);
-  const [support, setSupport] = useState<number | null>(null);
-  const [resistance, setResistance] = useState<number | null>(null);
-  const [aiAnalysis, setAiAnalysis] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function generateSignal() {
-      try {
-        setLoading(true);
-
-        // Get live market data
-        const marketResponse = await fetch(
-          `/api/market?coin=${encodeURIComponent(coin)}`
-        );
-
-        if (!marketResponse.ok) {
-          throw new Error("Failed to fetch market data");
-        }
-
-        const marketData = await marketResponse.json();
-
-        setMarket({
-          current_price: marketData.current_price,
-          price_change_percentage_24h:
-            marketData.price_change_percentage_24h,
-          high_24h: marketData.high_24h,
-          low_24h: marketData.low_24h,
-        });
-
-        // Get 7-day chart data
-        const chartResponse = await fetch(
-          `/api/chart?coin=${encodeURIComponent(coin)}&days=7`
-        );
-
-        if (!chartResponse.ok) {
-          throw new Error("Failed to fetch chart data");
-        }
-
-        const chartData = await chartResponse.json();
-
-        const points: ChartPoint[] = chartData.prices.map(
-          ([time, price]: [number, number]) => ({
-            time,
-            price,
-          })
-        );
-
-        const prices = points.map((point) => point.price);
-
-        if (prices.length > 0) {
-          setSupport(Math.min(...prices));
-          setResistance(Math.max(...prices));
-        }
-
-        // Get AI analysis
-        const aiResponse = await fetch("/api/analyze", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            coin,
-          }),
-        });
-
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-
-          if (aiData.analysis) {
-            setAiAnalysis(aiData.analysis);
-          }
-        }
-      } catch (error) {
-        console.error("Trade signal error:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    generateSignal();
-  }, [coin]);
+  const { coinData, loading } = useCoin();
 
   if (loading) {
     return (
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-white">
-        <h2 className="text-2xl font-bold">
-          🤖 Trade Signal
-        </h2>
-
+        <h2 className="text-2xl font-bold">🤖 Trade Signal</h2>
         <p className="mt-4 text-slate-400">
-          Analyzing market conditions...
+          Loading market data...
         </p>
       </div>
     );
   }
 
-  if (!market || support === null || resistance === null) {
+  if (!coinData) {
     return (
       <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-red-400">
         Unable to generate trade signal.
@@ -123,128 +24,86 @@ export default function TradeSignal() {
     );
   }
 
-  const currentPrice = market.current_price;
-  const change = market.price_change_percentage_24h;
-
-  /*
-   * Basic signal logic:
-   *
-   * Positive momentum + price near support = BUY
-   * Negative momentum + price near resistance = SELL
-   * Otherwise = HOLD
-   */
-
-  const range = resistance - support;
-
-  const positionInRange =
-    range > 0
-      ? ((currentPrice - support) / range) * 100
-      : 50;
+  const currentPrice = coinData.current_price;
+  const change = coinData.price_change_percentage_24h;
 
   let signal = "HOLD";
   let signalColor = "text-yellow-400";
   let signalBg = "bg-yellow-400/10";
   let confidence = 60;
-  let risk = "Medium";
 
-  if (change > 1 && positionInRange < 45) {
+  if (change >= 1) {
     signal = "BUY";
     signalColor = "text-green-400";
     signalBg = "bg-green-400/10";
-    confidence = 78;
-    risk = "Medium";
-  } else if (change < -1 && positionInRange > 55) {
+    confidence = Math.min(
+      90,
+      Math.round(65 + change * 5)
+    );
+  } else if (change <= -1) {
     signal = "SELL";
     signalColor = "text-red-400";
     signalBg = "bg-red-400/10";
-    confidence = 76;
-    risk = "Medium-High";
-  } else if (positionInRange > 85) {
-    signal = "HOLD";
-    confidence = 68;
-    risk = "High";
-  } else if (positionInRange < 15) {
-    signal = "BUY";
-    signalColor = "text-green-400";
-    signalBg = "bg-green-400/10";
-    confidence = 72;
-    risk = "Medium";
+    confidence = Math.min(
+      90,
+      Math.round(65 + Math.abs(change) * 5)
+    );
   }
 
   const stopLoss =
     signal === "BUY"
-      ? support * 0.98
+      ? coinData.low_24h * 0.98
       : currentPrice * 0.98;
 
   const takeProfit =
     signal === "BUY"
-      ? resistance
+      ? coinData.high_24h * 1.03
       : currentPrice * 0.97;
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-white">
-
-      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">
-            🤖 AI Trade Signal
+            🤖 Trade Signal
           </h2>
 
           <p className="mt-1 text-sm text-slate-400">
-            Market + technical + AI analysis
+            Based on current market momentum
           </p>
         </div>
 
-        <div
-          className={`rounded-xl px-5 py-3 ${signalBg}`}
-        >
-          <span
-            className={`text-2xl font-bold ${signalColor}`}
-          >
+        <div className={`rounded-xl px-5 py-3 ${signalBg}`}>
+          <span className={`text-2xl font-bold ${signalColor}`}>
             {signal}
           </span>
         </div>
       </div>
 
-      {/* Main Metrics */}
       <div className="grid grid-cols-2 gap-4">
-
         <div className="rounded-xl bg-slate-800 p-4">
-          <p className="text-sm text-slate-400">
-            Confidence
-          </p>
-
-          <p className="mt-1 text-2xl font-bold">
+          <p className="text-sm text-slate-400">Confidence</p>
+          <p className="mt-1 text-xl font-bold">
             {confidence}%
           </p>
         </div>
 
         <div className="rounded-xl bg-slate-800 p-4">
-          <p className="text-sm text-slate-400">
-            Risk
-          </p>
-
+          <p className="text-sm text-slate-400">Risk</p>
           <p className="mt-1 text-xl font-bold text-yellow-400">
-            {risk}
+            Medium
           </p>
         </div>
 
         <div className="rounded-xl bg-slate-800 p-4">
-          <p className="text-sm text-slate-400">
-            Entry
-          </p>
-
+          <p className="text-sm text-slate-400">Entry</p>
           <p className="mt-1 text-xl font-bold">
             ${currentPrice.toLocaleString()}
           </p>
         </div>
 
         <div className="rounded-xl bg-slate-800 p-4">
-          <p className="text-sm text-slate-400">
-            24H Change
-          </p>
-
+          <p className="text-sm text-slate-400">24H Change</p>
           <p
             className={`mt-1 text-xl font-bold ${
               change >= 0
@@ -258,30 +117,7 @@ export default function TradeSignal() {
         </div>
 
         <div className="rounded-xl bg-slate-800 p-4">
-          <p className="text-sm text-slate-400">
-            Support
-          </p>
-
-          <p className="mt-1 text-xl font-bold text-green-400">
-            ${support.toLocaleString()}
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-slate-800 p-4">
-          <p className="text-sm text-slate-400">
-            Resistance
-          </p>
-
-          <p className="mt-1 text-xl font-bold text-red-400">
-            ${resistance.toLocaleString()}
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-slate-800 p-4">
-          <p className="text-sm text-slate-400">
-            Stop Loss
-          </p>
-
+          <p className="text-sm text-slate-400">Stop Loss</p>
           <p className="mt-1 text-xl font-bold text-red-400">
             $
             {stopLoss.toLocaleString(undefined, {
@@ -291,10 +127,7 @@ export default function TradeSignal() {
         </div>
 
         <div className="rounded-xl bg-slate-800 p-4">
-          <p className="text-sm text-slate-400">
-            Take Profit
-          </p>
-
+          <p className="text-sm text-slate-400">Take Profit</p>
           <p className="mt-1 text-xl font-bold text-green-400">
             $
             {takeProfit.toLocaleString(undefined, {
@@ -304,25 +137,10 @@ export default function TradeSignal() {
         </div>
       </div>
 
-      {/* AI Summary */}
-      {aiAnalysis && (
-        <div className="mt-6">
-          <h3 className="mb-3 text-lg font-semibold">
-            🧠 AI Market View
-          </h3>
-
-          <div className="whitespace-pre-wrap rounded-xl bg-slate-800 p-4 text-sm leading-6 text-slate-300">
-            {aiAnalysis}
-          </div>
-        </div>
-      )}
-
-      {/* Disclaimer */}
       <div className="mt-6 rounded-lg bg-slate-800/60 p-4">
-        <p className="text-xs leading-5 text-slate-400">
-          This signal is experimental and combines market
-          momentum with technical price levels and AI analysis.
-          It is not financial advice.
+        <p className="text-sm text-slate-300">
+          This is an experimental signal based on short-term
+          price momentum. It is not financial advice.
         </p>
       </div>
     </div>

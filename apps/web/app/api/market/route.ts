@@ -13,12 +13,30 @@ export async function GET(request: Request) {
         headers: {
           Accept: "application/json",
         },
-        cache: "no-store",
+
+        // Cache market data for 30 seconds
+        next: {
+          revalidate: 30,
+        },
       }
     );
 
+    if (response.status === 429) {
+      console.warn("CoinGecko rate limit reached");
+
+      return NextResponse.json(
+        {
+          error: "Market data temporarily unavailable",
+          rateLimited: true,
+        },
+        { status: 429 }
+      );
+    }
+
     if (!response.ok) {
-      throw new Error(`CoinGecko returned ${response.status}`);
+      throw new Error(
+        `CoinGecko returned ${response.status}`
+      );
     }
 
     const data = await response.json();
@@ -48,7 +66,9 @@ export async function GET(request: Request) {
     console.error("Market API error:", error);
 
     return NextResponse.json(
-      { error: "Unable to fetch market data" },
+      {
+        error: "Unable to fetch market data",
+      },
       { status: 500 }
     );
   }
